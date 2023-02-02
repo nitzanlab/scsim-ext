@@ -1,5 +1,6 @@
 # scsim-ext
-We extend the single-cell RNA-sequencing simulation framework, [scsim](https://github.com/dylkot/scsim), with additional functionalities of (1) enhancing RNA dropout, and (2) ambient RNA.
+We extend the single-cell RNA-sequencing simulation framework, [scsim](https://github.com/dylkot/scsim), with additional functionalities of:
+(1) enhancing RNA dropout effect, and (2) adding ambient RNA to drops.
 
 ## scsim
 Simulate single-cell RNA-seq data using the [Splatter](https://github.com/Oshlack/splatter) statistical framework, which is described [here](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-017-1305-0) but implemented in python. In addition, simulates doublets and cells with shared gene-expression programs (I.e. activity programs). This was used to benchmark methods for gene expression program inference in single-cell RNA-seq data as described [here](https://elifesciences.org/articles/43803)
@@ -18,11 +19,11 @@ drop $y_n$ is set to 1 (because empty drops are not considered), and $\rho_n$
 is set to 0, because zero
 reads are exogenous to the drop as we account only for ambient RNA (pumped into the drop)
 and not for barcode swapping. Thus, the CellBender model simplifies to:
-$$C_{ng}\sim NB({d_n}^{cell}\Xsi_{ng} + {d_n}^{drop}{\Xsi_g}^a,\phi)$$
+$$C_{ng}\sim NB({d_n}^{cell}\Xi_{ng} + {d_n}^{drop}{\Xi_g}^a,\phi)$$
 
 The two models were combined as follows:
-$\lambda_{ng} = {d_n}^{cell} \Xsi_{ng}$ is the mean expression (similar to CellBender, scsim also uses a log-normal distribution of cell size)
-$\lambda_g^{-}=avg_n \lambda_{ng}=\Xsi_g^a$
+$\lambda_{ng} = {d_n}^{cell} \Xi_{ng}$ is the mean expression (similar to CellBender, scsim also uses a log-normal distribution of cell size)
+$\lambda_g^{-}=avg_n \lambda_{ng}=\Xi_g^a$
 is the mean true count of gene 𝑔, that is, the ambient contribution of the
 gene.
 Given the fraction of ambient RNA, $f^{drop}$, and the library size, $d_{\mu}^{cell}$, and scale, $d_{\sigma}^{cell}$, used for sampling the cell size, $d_{n}^{cell}$
