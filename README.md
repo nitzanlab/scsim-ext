@@ -19,11 +19,11 @@ drop $y_n$ is set to 1 (because empty drops are not considered), and $\rho_n$
 is set to 0, because zero
 reads are exogenous to the drop as we account only for ambient RNA (pumped into the drop)
 and not for barcode swapping. Thus, the CellBender model simplifies to:
-$$C_{ng}\sim NB({d_n}^{cell}\Chi_{ng} + {d_n}^{drop}{\Chi_g}^a,\phi)$$
+$$C_{ng}\sim NB({d_n}^{cell}\chi_{ng} + {d_n}^{drop}{\chi_g}^a,\phi)$$
 
 The two models were combined as follows:
-$\lambda_{ng} = {d_n}^{cell} \Chi_{ng}$ is the mean expression (similar to CellBender, scsim also uses a log-normal distribution of cell size)
-$\lambda_g^{-}=avg_n \lambda_{ng}=\Chi_g^a$
+$\lambda_{ng} = {d_n}^{cell} \chi_{ng}$ is the mean expression (similar to CellBender, scsim also uses a log-normal distribution of cell size)
+$\lambda_g^{-}=avg_n \lambda_{ng}=\chi_g^a$
 is the mean true count of gene 𝑔, that is, the ambient contribution of the
 gene.
 Given the fraction of ambient RNA, $f^{drop}$, and the library size, $d_{\mu}^{cell}$, and scale, $d_{\sigma}^{cell}$, used for sampling the cell size, $d_{n}^{cell}$
