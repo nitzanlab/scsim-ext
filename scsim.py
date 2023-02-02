@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
+import scipy.optimize as opt
+import matplotlib.pyplot as plt
 import sys
+from scipy.stats import nbinom
 
 class scsim:
     def __init__(self, ngenes=10000, ncells=100, seed=757578,
@@ -11,7 +14,10 @@ class scsim:
                 bcv_dof=60, ndoublets=0, groupprob=None,
                 nproggenes=None, progdownprob=None, progdeloc=None,
                 progdescale=None, proggoups=None, progcellfrac=None,
-                minprogusage=.2, maxprogusage=.8):
+                minprogusage=.2, maxprogusage=.8,
+                cellbender=False, cb_ambient=True, cb_fraclib=0.10, cb_droploc=None, cb_dropscale=None,
+                cb_dispshape=1, cb_dispscale=1,
+                dropmidpoint=None, dropshape=None):
 
         self.ngenes = ngenes
         self.ncells = ncells
@@ -40,6 +46,17 @@ class scsim:
         self.progcellfrac = progcellfrac
         self.minprogusage = minprogusage
         self.maxprogusage = maxprogusage
+        # cellbender
+        self.cellbender = cellbender
+        self.cb_ambient = cb_ambient
+        self.cb_fraclib = cb_fraclib
+        self.cb_droploc = cb_droploc
+        self.cb_dropscale = cb_dropscale
+        self.cb_dispshape = cb_dispshape
+        self.cb_dispscale = cb_dispscale
+        # dropout
+        self.dropmidpoint = dropmidpoint
+        self.dropshape = dropshape
 
         if groupprob is None:
             self.groupprob = [1/float(self.ngroups)]*self.ngroups
@@ -71,8 +88,81 @@ class scsim:
 
         print('Adjusting means')
         self.adjust_means_bcv()
-        print('Simulating counts')
-        self.simulate_counts()
+
+        if self.cellbender:
+            print('Simulating counts with cellbender')
+            self.simulate_cellbender()
+        else:
+            print('Simulating counts with scsim')
+            self.simulate_counts()
+
+            if self.dropmidpoint or self.dropshape:
+                print('Simulating dropouts')
+                self.simulate_dropouts()
+
+    def simulate_dropouts(self):
+        '''Add dropout to captured counts'''
+        # drop_prob = 1 / (1 + np.exp(-self.dropshape*(np.log(self.updatedmean)-self.dropmidpoint)))
+        # drop_ind = np.random.binomial(1, drop_prob)
+        # self.countswdrop = self.counts * drop_ind
+        drop_prob = 1 / (1 + np.exp(-self.dropshape * (np.log(self.counts) - self.dropmidpoint)))
+        plt.scatter(self.counts, drop_prob)
+        drop_ind = np.random.binomial(1, drop_prob)
+        self.countswdrop = self.updatedmean * drop_ind
+
+    def fit_dropout(self):
+        '''Fits midpoint and shape parameters for dropout in case one is missing'''
+        def f(x, k, x0):
+            return 1 / (1. + np.exp(-k * (x - x0)))
+        x = np.log(self.counts.mean())
+        y = (self.counts == 0).sum() / self.ncells
+        popt, pcov = opt.curve_fit(f, x, y, method="trf")
+        y_fit = f(x, *popt)
+        plt.scatter(x, y)
+        plt.scatter(x, y_fit, c='r')
+        plt.show()
+        dropshape, dropmidpoint = popt
+        return dropshape, dropmidpoint
+
+
+
+    def simulate_cellbender(self):
+        '''
+        Computes counts as:
+         Y'ij ~ NB(mean=lambda_ij + d* Lambda_i, dispersion=Phi)
+         with:
+         cb_fraclib - sets cb_droploc, and cb_dropscale as a fraction of libloc, libscale
+         dropsize d~lognormal(cb_droploc, cb_dropscale)
+         mean expression of gene i Lambda_i
+         dispersion Phi=mu+phi*mu^2, phi~Gamma(cb_dispshape, cb_dispscale)
+        https://www.biorxiv.org/content/10.1101/791699v1
+        '''
+        if self.cb_fraclib:
+            self.cb_droploc = self.libloc + np.log(self.cb_fraclib)
+            self.cb_dropscale = self.libscale # using same libscale for now
+        dropsize = np.random.lognormal(mean=self.cb_droploc, sigma=self.cb_dropscale, size=self.ncells)
+        dropsize = dropsize if self.cb_ambient else np.zeros_like(dropsize)
+        dispersion = np.random.gamma(shape=self.cb_dispshape, scale=self.cb_dispscale)
+
+        def convert_params2(mu, phi):
+            """
+            Convert mean/dispersion parameterization of a negative binomial to
+            """
+            n = 1. / phi
+            p = n / (mu + n)
+            return n, p
+
+        norm_mean_exp = self.updatedmean.mean().values.reshape((1, -1))
+        norm_mean_exp = norm_mean_exp / norm_mean_exp.sum()
+        ambient = np.dot(dropsize.reshape((-1, 1)), norm_mean_exp)
+        counts_mean = (self.updatedmean + ambient).values
+
+        eps = 1e-10
+        n, p = convert_params2(mu=counts_mean[counts_mean > eps], phi=dispersion)
+        counts = np.zeros_like(self.updatedmean)
+        counts[counts_mean > eps] = np.random.negative_binomial(np.full_like(p, n), p)
+        self.counts = pd.DataFrame(counts, index=self.cellnames, columns=self.genenames)
+
 
     def simulate_counts(self):
         '''Sample read counts for each gene x cell from Poisson distribution
