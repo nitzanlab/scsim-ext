@@ -102,15 +102,11 @@ class scsim:
 
     def simulate_dropouts(self):
         '''Add dropout to captured counts'''
-        # drop_prob = 1 / (1 + np.exp(-self.dropshape*(np.log(self.updatedmean)-self.dropmidpoint)))
-        # drop_ind = np.random.binomial(1, drop_prob)
-        # self.countswdrop = self.counts * drop_ind
         drop_prob = 1 / (1 + np.exp(-self.dropshape * (np.log(self.counts) - self.dropmidpoint)))
-        plt.scatter(self.counts, drop_prob)
         drop_ind = np.random.binomial(1, drop_prob)
-        self.countswdrop = self.updatedmean * drop_ind
+        self.countswdrop = self.counts * drop_ind #self.updatedmean * drop_ind
 
-    def fit_dropout(self):
+    def fit_dropout(self, plot=False):
         '''Fits midpoint and shape parameters for dropout in case one is missing'''
         def f(x, k, x0):
             return 1 / (1. + np.exp(-k * (x - x0)))
@@ -118,9 +114,14 @@ class scsim:
         y = (self.counts == 0).sum() / self.ncells
         popt, pcov = opt.curve_fit(f, x, y, method="trf")
         y_fit = f(x, *popt)
-        plt.scatter(x, y)
-        plt.scatter(x, y_fit, c='r')
-        plt.show()
+        if plot:
+            plt.scatter(x, y, label='data')
+            plt.scatter(x, y_fit, c='r', label='fit')
+            plt.xlabel('log(mean)')
+            plt.ylabel('dropout rate')
+            plt.title('Dropout fit')
+            plt.legend()
+            plt.show()
         dropshape, dropmidpoint = popt
         return dropshape, dropmidpoint
 
@@ -190,7 +191,7 @@ class scsim:
         self.cellparams['is_doublet'] = False
         self.cellparams.loc[d_ind, 'is_doublet'] = True
         extraind = self.cellparams.index[-self.ndoublets:]
-        group2 = self.cellparams.ix[extraind, 'group'].values
+        group2 = self.cellparams.loc[extraind, 'group'].values
         self.cellparams['group2'] = -1
         self.cellparams.loc[d_ind, 'group2'] = group2
 
