@@ -278,9 +278,12 @@ class scsim:
         median = np.median(basegenemean)
         gene_mean[is_outlier] = outliers*median
         self.genenames = ['Gene%d' % i for i in range(1, self.ngenes+1)]
-        geneparams = pd.DataFrame([basegenemean, is_outlier, outlier_ratio, gene_mean],
-                                  index=['BaseGeneMean', 'is_outlier', 'outlier_ratio', 'gene_mean'],
-                                 columns=self.genenames).T
+        geneparams = pd.DataFrame({
+            'BaseGeneMean': basegenemean,
+            'is_outlier': is_outlier,
+            'outlier_ratio': outlier_ratio,
+            'gene_mean': gene_mean,
+        }, index=self.genenames)
         return(geneparams)
 
 
@@ -290,9 +293,10 @@ class scsim:
         libsize = np.random.lognormal(mean=self.libloc, sigma=self.libscale,
                                       size=self.init_ncells)
         self.cellnames = ['Cell%d' % i for i in range(1, self.init_ncells+1)]
-        cellparams = pd.DataFrame([groupid, libsize],
-                                  index=['group', 'libsize'],
-                                  columns=self.cellnames).T
+        cellparams = pd.DataFrame({
+            'group': groupid,
+            'libsize': libsize,
+        }, index=self.cellnames)
         cellparams['group'] = cellparams['group'].astype(int)
         return(cellparams)
 
