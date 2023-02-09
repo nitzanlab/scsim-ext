@@ -102,9 +102,10 @@ class scsim:
 
     def simulate_dropouts(self):
         '''Add dropout to captured counts'''
-        drop_prob = 1 / (1 + np.exp(-self.dropshape * (np.log(self.counts) - self.dropmidpoint)))
+        np.random.seed(self.seed) # re-seed here as other random things may have happened, between the regular simulation and the one with dropout
+        drop_prob = 1 / (1 + np.exp(-self.dropshape * (np.log(self.updatedmean) - self.dropmidpoint)))
         drop_ind = np.random.binomial(1, drop_prob)
-        self.countswdrop = self.counts * drop_ind #self.updatedmean * drop_ind
+        self.countswdrop = self.counts * drop_ind
 
     def fit_dropout(self, plot=False):
         '''Fits midpoint and shape parameters for dropout in case one is missing'''
